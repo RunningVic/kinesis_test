@@ -11,16 +11,13 @@
     <packaging>jar</packaging>
 
     <name>Kinesis Producer Utility</name>
-    <description>Utility library for producing messages to Kinesis Data Streams supporting String and AVRO formats</description>
+    <description>Simple utility library for producing String messages to Kinesis Data Streams</description>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <aws.sdk.version>2.20.0</aws.sdk.version>
-        <avro.version>1.11.3</avro.version>
-        <slf4j.version>2.0.7</slf4j.version>
-        <junit.version>5.9.3</junit.version>
     </properties>
 
     <dependencies>
@@ -31,69 +28,11 @@
             <version>${aws.sdk.version}</version>
         </dependency>
 
-        <!-- AWS SDK 2 - Core -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>aws-core</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- AWS SDK 2 - Auth -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>auth</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- AWS SDK 2 - Regions -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>regions</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- AWS SDK 2 - Apache HTTP Client (for synchronous client) -->
+        <!-- AWS SDK 2 - Apache HTTP Client -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
             <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- AWS SDK 2 - Netty NIO HTTP Client (for asynchronous client) -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>netty-nio-client</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- Apache Avro -->
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-            <version>${avro.version}</version>
-        </dependency>
-
-        <!-- SLF4J API -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <!-- SLF4J Simple (for logging, can be replaced by user) -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- JUnit 5 for testing -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -107,11 +46,6 @@
                     <source>11</source>
                     <target>11</target>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0</version>
             </plugin>
         </plugins>
     </build>
