@@ -14,44 +14,55 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Synchronous Kinesis Producer implementation for AVRO data format.
+ * Asynchronous Kinesis Producer implementation for AVRO data format.
  */
-public class AvroKinesisProducer extends BaseKinesisSyncProducer {
+public class AvroKinesisAsyncProducer extends BaseKinesisAsyncProducer {
     
     private final EncoderFactory encoderFactory = EncoderFactory.get();
     
-    public AvroKinesisProducer(KinesisProducerConfig config) {
+    public AvroKinesisAsyncProducer(KinesisProducerConfig config) {
         super(config);
     }
     
     /**
-     * Sends a GenericRecord (AVRO) to Kinesis Data Stream synchronously.
+     * Sends a GenericRecord (AVRO) to Kinesis Data Stream asynchronously.
      * 
      * @param streamName The name of the Kinesis stream
      * @param partitionKey The partition key for the record
      * @param record The AVRO GenericRecord to send
-     * @return PutRecordResponse from Kinesis
-     * @throws Exception if the operation fails
+     * @return CompletableFuture with PutRecordResponse
      */
-    public PutRecordResponse sendAvro(String streamName, String partitionKey, GenericRecord record) throws Exception {
-        byte[] avroBytes = serializeAvro(record);
-        return sendRecord(streamName, partitionKey, avroBytes);
+    public CompletableFuture<PutRecordResponse> sendAvro(String streamName, String partitionKey, GenericRecord record) {
+        try {
+            byte[] avroBytes = serializeAvro(record);
+            return sendRecord(streamName, partitionKey, avroBytes);
+        } catch (Exception e) {
+            CompletableFuture<PutRecordResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
     }
     
     /**
-     * Sends a SpecificRecord (AVRO) to Kinesis Data Stream synchronously.
+     * Sends a SpecificRecord (AVRO) to Kinesis Data Stream asynchronously.
      * 
      * @param streamName The name of the Kinesis stream
      * @param partitionKey The partition key for the record
      * @param record The AVRO SpecificRecord to send
-     * @return PutRecordResponse from Kinesis
-     * @throws Exception if the operation fails
+     * @return CompletableFuture with PutRecordResponse
      */
-    public PutRecordResponse sendAvro(String streamName, String partitionKey, SpecificRecord record) throws Exception {
-        byte[] avroBytes = serializeAvro(record);
-        return sendRecord(streamName, partitionKey, avroBytes);
+    public CompletableFuture<PutRecordResponse> sendAvro(String streamName, String partitionKey, SpecificRecord record) {
+        try {
+            byte[] avroBytes = serializeAvro(record);
+            return sendRecord(streamName, partitionKey, avroBytes);
+        } catch (Exception e) {
+            CompletableFuture<PutRecordResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
     }
     
     /**
@@ -95,61 +106,76 @@ public class AvroKinesisProducer extends BaseKinesisSyncProducer {
     }
     
     /**
-     * Sends multiple GenericRecord (AVRO) records to Kinesis Data Stream synchronously using batch API.
+     * Sends multiple GenericRecord (AVRO) records to Kinesis Data Stream asynchronously using batch API.
      * 
      * @param streamName The name of the Kinesis stream
      * @param records Map of partition key to AVRO GenericRecord
-     * @return PutRecordsResponse from Kinesis
-     * @throws Exception if the operation fails
+     * @return CompletableFuture with PutRecordsResponse
      */
-    public PutRecordsResponse sendGenericRecordBatch(String streamName, Map<String, GenericRecord> records) throws Exception {
-        List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
-        for (Map.Entry<String, GenericRecord> entry : records.entrySet()) {
-            byte[] avroBytes = serializeAvro(entry.getValue());
-            recordEntries.add(new KinesisProducer.RecordEntry(entry.getKey(), avroBytes));
+    public CompletableFuture<PutRecordsResponse> sendGenericRecordBatch(String streamName, Map<String, GenericRecord> records) {
+        try {
+            List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
+            for (Map.Entry<String, GenericRecord> entry : records.entrySet()) {
+                byte[] avroBytes = serializeAvro(entry.getValue());
+                recordEntries.add(new KinesisProducer.RecordEntry(entry.getKey(), avroBytes));
+            }
+            return sendBatch(streamName, recordEntries);
+        } catch (Exception e) {
+            CompletableFuture<PutRecordsResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
         }
-        return sendBatch(streamName, recordEntries);
     }
     
     /**
-     * Sends multiple SpecificRecord (AVRO) records to Kinesis Data Stream synchronously using batch API.
+     * Sends multiple SpecificRecord (AVRO) records to Kinesis Data Stream asynchronously using batch API.
      * 
      * @param streamName The name of the Kinesis stream
      * @param records Map of partition key to AVRO SpecificRecord
-     * @return PutRecordsResponse from Kinesis
-     * @throws Exception if the operation fails
+     * @return CompletableFuture with PutRecordsResponse
      */
-    public PutRecordsResponse sendSpecificRecordBatch(String streamName, Map<String, SpecificRecord> records) throws Exception {
-        List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
-        for (Map.Entry<String, SpecificRecord> entry : records.entrySet()) {
-            byte[] avroBytes = serializeAvro(entry.getValue());
-            recordEntries.add(new KinesisProducer.RecordEntry(entry.getKey(), avroBytes));
+    public CompletableFuture<PutRecordsResponse> sendSpecificRecordBatch(String streamName, Map<String, SpecificRecord> records) {
+        try {
+            List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
+            for (Map.Entry<String, SpecificRecord> entry : records.entrySet()) {
+                byte[] avroBytes = serializeAvro(entry.getValue());
+                recordEntries.add(new KinesisProducer.RecordEntry(entry.getKey(), avroBytes));
+            }
+            return sendBatch(streamName, recordEntries);
+        } catch (Exception e) {
+            CompletableFuture<PutRecordsResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
         }
-        return sendBatch(streamName, recordEntries);
     }
     
     /**
-     * Sends multiple AVRO records to Kinesis Data Stream synchronously using batch API.
+     * Sends multiple AVRO records to Kinesis Data Stream asynchronously using batch API.
      * 
      * @param streamName The name of the Kinesis stream
      * @param records List of AVRO record entries
-     * @return PutRecordsResponse from Kinesis
-     * @throws Exception if the operation fails
+     * @return CompletableFuture with PutRecordsResponse
      */
-    public PutRecordsResponse sendAvroBatch(String streamName, List<AvroRecordEntry> records) throws Exception {
-        List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
-        for (AvroRecordEntry entry : records) {
-            byte[] avroBytes;
-            if (entry.getGenericRecord() != null) {
-                avroBytes = serializeAvro(entry.getGenericRecord());
-            } else if (entry.getSpecificRecord() != null) {
-                avroBytes = serializeAvro(entry.getSpecificRecord());
-            } else {
-                throw new IllegalArgumentException("Record entry must contain either GenericRecord or SpecificRecord");
+    public CompletableFuture<PutRecordsResponse> sendAvroBatch(String streamName, List<AvroRecordEntry> records) {
+        try {
+            List<KinesisProducer.RecordEntry> recordEntries = new ArrayList<>();
+            for (AvroRecordEntry entry : records) {
+                byte[] avroBytes;
+                if (entry.getGenericRecord() != null) {
+                    avroBytes = serializeAvro(entry.getGenericRecord());
+                } else if (entry.getSpecificRecord() != null) {
+                    avroBytes = serializeAvro(entry.getSpecificRecord());
+                } else {
+                    throw new IllegalArgumentException("Record entry must contain either GenericRecord or SpecificRecord");
+                }
+                recordEntries.add(new KinesisProducer.RecordEntry(entry.getPartitionKey(), avroBytes, entry.getExplicitHashKey()));
             }
-            recordEntries.add(new KinesisProducer.RecordEntry(entry.getPartitionKey(), avroBytes, entry.getExplicitHashKey()));
+            return sendBatch(streamName, recordEntries);
+        } catch (Exception e) {
+            CompletableFuture<PutRecordsResponse> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
         }
-        return sendBatch(streamName, recordEntries);
     }
     
     /**

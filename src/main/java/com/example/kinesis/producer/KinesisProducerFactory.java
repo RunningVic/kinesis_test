@@ -3,12 +3,14 @@ package com.example.kinesis.producer;
 import software.amazon.awssdk.regions.Region;
 
 /**
- * Factory class for creating Kinesis Producer instances.
+ * Factory class for creating Kinesis Producer instances (both sync and async).
  */
 public class KinesisProducerFactory {
     
+    // ========== String Sync Producers ==========
+    
     /**
-     * Creates a StringKinesisProducer with default configuration.
+     * Creates a StringKinesisProducer (synchronous) with default configuration.
      * 
      * @return StringKinesisProducer instance
      */
@@ -17,7 +19,7 @@ public class KinesisProducerFactory {
     }
     
     /**
-     * Creates a StringKinesisProducer with custom configuration.
+     * Creates a StringKinesisProducer (synchronous) with custom configuration.
      * 
      * @param config The configuration for the producer
      * @return StringKinesisProducer instance
@@ -27,7 +29,7 @@ public class KinesisProducerFactory {
     }
     
     /**
-     * Creates a StringKinesisProducer with region.
+     * Creates a StringKinesisProducer (synchronous) with region.
      * 
      * @param region The AWS region
      * @return StringKinesisProducer instance
@@ -37,8 +39,42 @@ public class KinesisProducerFactory {
         return new StringKinesisProducer(config);
     }
     
+    // ========== String Async Producers ==========
+    
     /**
-     * Creates an AvroKinesisProducer with default configuration.
+     * Creates a StringKinesisAsyncProducer (asynchronous) with default configuration.
+     * 
+     * @return StringKinesisAsyncProducer instance
+     */
+    public static StringKinesisAsyncProducer createStringAsyncProducer() {
+        return new StringKinesisAsyncProducer(new KinesisProducerConfig());
+    }
+    
+    /**
+     * Creates a StringKinesisAsyncProducer (asynchronous) with custom configuration.
+     * 
+     * @param config The configuration for the producer
+     * @return StringKinesisAsyncProducer instance
+     */
+    public static StringKinesisAsyncProducer createStringAsyncProducer(KinesisProducerConfig config) {
+        return new StringKinesisAsyncProducer(config);
+    }
+    
+    /**
+     * Creates a StringKinesisAsyncProducer (asynchronous) with region.
+     * 
+     * @param region The AWS region
+     * @return StringKinesisAsyncProducer instance
+     */
+    public static StringKinesisAsyncProducer createStringAsyncProducer(Region region) {
+        KinesisProducerConfig config = new KinesisProducerConfig().setRegion(region);
+        return new StringKinesisAsyncProducer(config);
+    }
+    
+    // ========== AVRO Sync Producers ==========
+    
+    /**
+     * Creates an AvroKinesisProducer (synchronous) with default configuration.
      * 
      * @return AvroKinesisProducer instance
      */
@@ -47,7 +83,7 @@ public class KinesisProducerFactory {
     }
     
     /**
-     * Creates an AvroKinesisProducer with custom configuration.
+     * Creates an AvroKinesisProducer (synchronous) with custom configuration.
      * 
      * @param config The configuration for the producer
      * @return AvroKinesisProducer instance
@@ -57,7 +93,7 @@ public class KinesisProducerFactory {
     }
     
     /**
-     * Creates an AvroKinesisProducer with region.
+     * Creates an AvroKinesisProducer (synchronous) with region.
      * 
      * @param region The AWS region
      * @return AvroKinesisProducer instance
@@ -65,5 +101,37 @@ public class KinesisProducerFactory {
     public static AvroKinesisProducer createAvroProducer(Region region) {
         KinesisProducerConfig config = new KinesisProducerConfig().setRegion(region);
         return new AvroKinesisProducer(config);
+    }
+    
+    // ========== AVRO Async Producers ==========
+    
+    /**
+     * Creates an AvroKinesisAsyncProducer (asynchronous) with default configuration.
+     * 
+     * @return AvroKinesisAsyncProducer instance
+     */
+    public static AvroKinesisAsyncProducer createAvroAsyncProducer() {
+        return new AvroKinesisAsyncProducer(new KinesisProducerConfig());
+    }
+    
+    /**
+     * Creates an AvroKinesisAsyncProducer (asynchronous) with custom configuration.
+     * 
+     * @param config The configuration for the producer
+     * @return AvroKinesisAsyncProducer instance
+     */
+    public static AvroKinesisAsyncProducer createAvroAsyncProducer(KinesisProducerConfig config) {
+        return new AvroKinesisAsyncProducer(config);
+    }
+    
+    /**
+     * Creates an AvroKinesisAsyncProducer (asynchronous) with region.
+     * 
+     * @param region The AWS region
+     * @return AvroKinesisAsyncProducer instance
+     */
+    public static AvroKinesisAsyncProducer createAvroAsyncProducer(Region region) {
+        KinesisProducerConfig config = new KinesisProducerConfig().setRegion(region);
+        return new AvroKinesisAsyncProducer(config);
     }
 }
