@@ -1,55 +1,49 @@
 package com.example.kinesis.producer;
 
-import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 /**
  * Base implementation for synchronous Kinesis Producer using native AWS SDK 2.x.
+ * Extends BasicProducer to reuse common functionality.
  */
-public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
+public abstract class BaseKinesisSyncProducer extends BasicProducer implements KinesisSyncProducer {
     
     protected final KinesisClient kinesisClient;
-    protected final KinesisProducerConfig config;
     
     // Batch buffering
     private final Map<String, List<KinesisProducer.RecordEntry>> batchBuffers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService flushScheduler;
-    private final AtomicBoolean closed = new AtomicBoolean(false);
     
     public BaseKinesisSyncProducer(KinesisProducerConfig config) {
-        this.config = config != null ? config : new KinesisProducerConfig();
+        super(config);
         
         // Build synchronous client with performance optimizations
         KinesisClient.Builder syncBuilder = KinesisClient.builder();
-        if (this.config.getRegion() != null) {
-            syncBuilder.region(this.config.getRegion());
+        if (config.getRegion() != null) {
+            syncBuilder.region(config.getRegion());
         }
-        if (this.config.getEndpointOverride() != null) {
-            syncBuilder.endpointOverride(URI.create(this.config.getEndpointOverride()));
+        
+        URI endpointUri = getEndpointUri(config.getEndpointOverride());
+        if (endpointUri != null) {
+            syncBuilder.endpointOverride(endpointUri);
         }
         
         ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder()
-                .maxConnections(this.config.getMaxConnections())
-                .connectionTimeout(Duration.ofMillis(this.config.getRequestTimeoutMillis()))
-                .connectionTimeToLive(this.config.getConnectionTimeToLive())
-                .connectionAcquisitionTimeout(Duration.ofSeconds(this.config.getConnectionAcquisitionTimeoutSeconds()));
+                .maxConnections(config.getMaxConnections())
+                .connectionTimeout(getConnectionTimeout())
+                .connectionTimeToLive(getConnectionTimeToLive())
+                .connectionAcquisitionTimeout(getConnectionAcquisitionTimeout());
         
-        if (this.config.isEnableConnectionPooling()) {
+        if (config.isEnableConnectionPooling()) {
             httpClientBuilder.useIdleConnectionReaper(true);
         }
         
@@ -57,7 +51,7 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
         this.kinesisClient = syncBuilder.build();
         
         // Start scheduled flush if auto-flush is enabled
-        if (this.config.isEnableAutoFlush()) {
+        if (config.isEnableAutoFlush()) {
             this.flushScheduler = Executors.newScheduledThreadPool(
                     1,
                     r -> {
@@ -68,8 +62,8 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
             );
             this.flushScheduler.scheduleAtFixedRate(
                     this::flushAllBuffers,
-                    this.config.getBatchFlushIntervalMillis(),
-                    this.config.getBatchFlushIntervalMillis(),
+                    config.getBatchFlushIntervalMillis(),
+                    config.getBatchFlushIntervalMillis(),
                     TimeUnit.MILLISECONDS
             );
         } else {
@@ -79,35 +73,27 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
     
     @Override
     public PutRecordResponse sendRecord(String streamName, String partitionKey, byte[] data) throws Exception {
-        PutRecordRequest request = PutRecordRequest.builder()
-                .streamName(streamName)
-                .partitionKey(partitionKey)
-                .data(SdkBytes.fromByteArray(data))
-                .build();
-        
-        return kinesisClient.putRecord(request);
+        validateNotClosed();
+        return kinesisClient.putRecord(
+                buildPutRecordRequest(streamName, partitionKey, data).build()
+        );
     }
     
     @Override
     public PutRecordsResponse sendBatch(String streamName, Map<String, byte[]> records) throws Exception {
-        List<KinesisProducer.RecordEntry> recordEntries = records.entrySet().stream()
-                .map(entry -> new KinesisProducer.RecordEntry(entry.getKey(), entry.getValue()))
-                .collect(Collectors.toList());
-        return sendBatch(streamName, recordEntries);
+        return sendBatch(streamName, convertToRecordEntries(records));
     }
     
     @Override
     public PutRecordsResponse sendBatch(String streamName, List<KinesisProducer.RecordEntry> records) throws Exception {
-        if (records == null || records.isEmpty()) {
-            throw new IllegalArgumentException("Records list cannot be null or empty");
-        }
+        validateNotClosed();
+        validateRecords(records);
         
         // Split into chunks if exceeds batch size limit
         List<PutRecordsResponse> responses = new ArrayList<>();
-        for (int i = 0; i < records.size(); i += config.getBatchSize()) {
-            int end = Math.min(i + config.getBatchSize(), records.size());
-            List<KinesisProducer.RecordEntry> batch = records.subList(i, end);
-            
+        List<List<KinesisProducer.RecordEntry>> batches = splitIntoBatches(records);
+        
+        for (List<KinesisProducer.RecordEntry> batch : batches) {
             PutRecordsResponse response = sendBatchChunk(streamName, batch);
             responses.add(response);
             
@@ -122,39 +108,14 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
     }
     
     private PutRecordsResponse sendBatchChunk(String streamName, List<KinesisProducer.RecordEntry> records) throws Exception {
-        List<PutRecordsRequestEntry> entries = records.stream()
-                .map(record -> {
-                    PutRecordsRequestEntry.Builder builder = PutRecordsRequestEntry.builder()
-                            .partitionKey(record.getPartitionKey())
-                            .data(SdkBytes.fromByteArray(record.getData()));
-                    
-                    if (record.getExplicitHashKey() != null) {
-                        builder.explicitHashKey(record.getExplicitHashKey());
-                    }
-                    
-                    return builder.build();
-                })
-                .collect(Collectors.toList());
-        
-        PutRecordsRequest request = PutRecordsRequest.builder()
-                .streamName(streamName)
-                .records(entries)
-                .build();
-        
-        return kinesisClient.putRecords(request);
+        List<PutRecordsRequestEntry> entries = buildPutRecordsRequestEntries(records);
+        return kinesisClient.putRecords(
+                buildPutRecordsRequest(streamName, entries).build()
+        );
     }
     
     private void handleFailedRecords(String streamName, List<KinesisProducer.RecordEntry> records, PutRecordsResponse response) {
-        // Retry failed records
-        List<KinesisProducer.RecordEntry> failedRecords = new ArrayList<>();
-        List<PutRecordsResultEntry> results = response.records();
-        
-        for (int i = 0; i < results.size(); i++) {
-            PutRecordsResultEntry result = results.get(i);
-            if (result.errorCode() != null) {
-                failedRecords.add(records.get(i));
-            }
-        }
+        List<KinesisProducer.RecordEntry> failedRecords = extractFailedRecords(records, response);
         
         // Retry failed records (simple retry, could be enhanced with exponential backoff)
         if (!failedRecords.isEmpty() && config.getMaxRetries() > 0) {
@@ -170,11 +131,12 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
     
     @Override
     public void flush() throws Exception {
+        validateNotClosed();
         flushAllBuffers();
     }
     
     private void flushAllBuffers() {
-        if (closed.get()) {
+        if (isClosed()) {
             return;
         }
         
@@ -204,9 +166,7 @@ public abstract class BaseKinesisSyncProducer implements KinesisSyncProducer {
      * Adds a record to the batch buffer for the specified stream.
      */
     protected void addToBatchBuffer(String streamName, KinesisProducer.RecordEntry record) {
-        if (closed.get()) {
-            throw new IllegalStateException("Producer is closed");
-        }
+        validateNotClosed();
         
         batchBuffers.computeIfAbsent(streamName, k -> Collections.synchronizedList(new ArrayList<>()))
                 .add(record);
